@@ -123,7 +123,7 @@ project/plugins/project/
 .history
 .cache
 .lib/
-
+.bsp
 ### Scala ###
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
