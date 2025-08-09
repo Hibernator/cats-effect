@@ -1,6 +1,7 @@
 package com.rockthejvm.part2effects
 
 import scala.concurrent.Future
+import scala.io.StdIn
 
 object Effects:
 
@@ -84,6 +85,87 @@ object Effects:
     42
   })
 
+  /*
+    Exercises
+    1. An IO which returns the current time of the system (System.currentTimeMillis)
+    2. An IO which measures the duration of a computation (IO.unsafeRun). Hint: use exercise 1
+    3. An IO which prints something to the console
+    4. An IO which reads a line (a string) from the std input
+   */
+
+  // 1
+  val clock: MyIO[Long] = MyIO(() => System.currentTimeMillis())
+
+  // 2
+  def measure[A](computation: MyIO[A]): MyIO[Long] =
+    val intermediate = clock.flatMap: startTime =>
+      computation.map(_ => startTime)
+    intermediate.flatMap: startTime =>
+      clock.map(_ - startTime)
+
+  def measureFor[A](computation: MyIO[A]): MyIO[Long] =
+    for
+      startTime <- clock
+      _ <- computation
+      endTime <- clock
+    yield endTime - startTime
+
+  /*
+    Let's deconstruct the for-comprehension:
+    clock.flatMap(startTime => computation.flatMap(_ => clock.map(finishTime => finishTime - startTime)))
+
+    clock.map(finishTime => finishTime - startTime) = MyIO(() => clock.unsafeRun() - startTime)
+    clock.map(finishTime => finishTime - startTime) = MyIO(() => System.currentTimeMillis() - startTime)
+
+    clock.flatMap(startTime => computation.flatMap(_ => MyIO(() => System.currentTimeMillis() - startTime)))
+
+    computation.flatMap(lambda) = MyIO(() => lambda(___COMP___).unsafeRun())
+                                = MyIO(() => MyIO(() => System.currentTimeMillis() - startTime)).unsafeRun())
+                                = MyIO(() => System.currentTimeMillis_after_computation() - startTime)
+
+    clock.flatMap(startTime => MyIO(() => System.currentTimeMillis_after_computation() - startTime)
+    MyIO(() => lambda(clock.unsafeRun()).unsafeRun())
+    MyIO(() => lambda(System.currentTimeMillis()).unsafeRun())
+    MyIO(() => MyIO(() => System.currentTimeMillis_after_computation() - System.currentTimeMillis()).unsafeRun()))
+    MyIO(() => System.currentTimeMillis_after_computation() - System.currentTimeMillis_at_start())
+   */
+
+  // The deconstruction is really complicated and we don't need to think about it too much
+  // Better to think in terms of the for-comprehension and data structures transformations
+
+  def testTimeIO(): Unit =
+    val test = measure(MyIO(() => Thread.sleep(1000)))
+    println(test.unsafeRun())
+
+  // 3
+  def putStrLn(line: String): MyIO[Unit] = MyIO(() => println(line))
+
+  // 4
+  val read: MyIO[String] = MyIO(() => StdIn.readLine())
+
+  // let's combine putStrLn and read
+  def testConsole(): Unit =
+    val program: MyIO[Unit] = for
+      line1 <- read
+      line2 <- read
+      _ <- putStrLn(s"$line1$line2")
+    yield () // yielding Unit is a common pattern in cats-effect
+
+    program.unsafeRun()
+
+  /*
+    The testConsole method look very similar to imperative programming like this:
+    line1 = readFromConsole()
+    line2 = readFromConsole()
+    print(line1 + line2)
+
+    But here we are describing an imperative program through MyIO data structure transformations with pure functional programming
+   */
+
   def main(args: Array[String]): Unit = {
     anIO.unsafeRun() // only here the side effect is performed
+    println(measure(MyIO(() => Thread.sleep(1000))).unsafeRun()) // measure the duration of a computation
+    println(measureFor(MyIO(() => Thread.sleep(1000))).unsafeRun()) // measure the duration of a computation
+    testTimeIO()
+    testConsole()
   }
