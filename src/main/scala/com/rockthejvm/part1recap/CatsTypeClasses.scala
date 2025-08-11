@@ -129,5 +129,6 @@ object CatsTypeClasses:
 
   import cats.syntax.traverse.*
   val optionList_v2: Option[List[Int]] = List(1, 2, 3).traverse(x => Option(x))
+  // List[Future[A]] -> Future[List[A]] would be more useful example
 
   def main(args: Array[String]): Unit = {}
