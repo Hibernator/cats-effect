@@ -39,7 +39,7 @@ object IOIntroduction:
    */
 
   import cats.syntax.apply.*
-  val combinedMeaningOfLife: IO[(Int)] =
+  val combinedMeaningOfLife: IO[Int] =
     (ourFirstIO, improvedMeaningOfLife).mapN(_ + _) // maps a tuple to something else
 
   def smallProgram_v2(): IO[Unit] =
@@ -53,11 +53,12 @@ object IOIntroduction:
   // hint: use flatMap
   def sequenceTakeLast[A, B](ioa: IO[A], iob: IO[B]): IO[B] = ioa.flatMap(_ => iob)
 
-  // eager andThen. IO is created eagerly but not evaulated
+  // eager andThen. IO is created eagerly but not evaluated
   def sequenceTakeLast_v2[A, B](ioa: IO[A], iob: IO[B]): IO[B] = ioa *> iob
-  // IO.flatMap is very similar and it is stack safe!!!
+  // IO.flatMap is very similar and it is stack safe!!! This one is not
 
   // andThen "by-name" (iob passed by name), even the IO itself is not created immediately
+  // This is stack-safe
   def sequenceTakeLast_v3[A, B](ioa: IO[A], iob: IO[B]): IO[B] = ioa >> iob
 
   // 2 - sequence two IOs and take the result of the first one
@@ -83,7 +84,7 @@ object IOIntroduction:
 
   def forever_v4[A](io: IO[A]): IO[A] = io.foreverM // uses tail recursion, so it does not cause stack overflow
 
-  // 4 - convert and IO to a different type
+  // 4 - convert an IO to a different type
   // hint: use map
   def convert[A, B](ioa: IO[A], value: B): IO[B] = ioa.map(_ => value)
 

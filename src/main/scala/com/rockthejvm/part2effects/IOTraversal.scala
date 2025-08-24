@@ -21,7 +21,7 @@ object IOTraversal extends IOApp.Simple:
     "Looking forward to some awesome stuff"
   )
 
-  def clunkyFutures(): Unit = // to make sure the futures only start when this method is called
+  def clunkyFutures(): Unit = // def to make sure the futures only start when this method is called
     val futures: List[Future[Int]] = workload.map(heavyComputation)
     // Future[List[Int]] would be hard to obtain. This is where the traverse concept becomes useful
     futures.foreach(_.foreach(println))
