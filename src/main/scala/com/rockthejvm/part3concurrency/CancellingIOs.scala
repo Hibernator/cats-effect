@@ -87,10 +87,59 @@ object CancellingIOs extends IOApp.Simple:
   /*
     Uncancelable calls are MASKS which suppress cancellation.
     Poll calls are "gaps opened" in the uncancelable region.
+    The cancellation is only suppressed in the masked region. not completely eliminated.
+    It will kick in as soon as the program leaves the masked region.
    */
+
+  /*
+    Exercises
+   */
+
+  // 1
+  val cancelBeforeMol = IO.canceled >> IO(42).ioDebug // this will do nothing
+
+  // What will happen here?
+  // 42 will be printed because it is in uncancelable region
+  // All cancelation signals are suppressed even if they come from the same fiber
+  val uncancelableMol = IO.uncancelable(_ => IO.canceled >> IO(42).ioDebug)
+  // Uncancelable eliminates ALL cancel calls, except the unmasked parts wrapped in poll
+
+  // 2
+  // What will happen if authFlow is canceled in different stages?
+  // There are nested masked regions, each with their own poll. Both need to be applied to enable cancelation
+  // IO.uncancelable will mask the entire region. The gaps can only be opened with poll of that IO.uncancelable
+  // So in this case, the authFlowCancelable becomes uncancelable
+  val invincibleAuthProgram: IO[Unit] =
+    for
+      authFib <- IO.uncancelable(_ => authFlowCancelable).start
+      _ <- IO.sleep(1.seconds) >> IO("Authentication timeout, attempting cancel...").ioDebug >> authFib.cancel
+      _ <- authFib.join
+    yield ()
+
+  // 3
+  // Here, we have a sequence of 3 effects inside masked region: cancelable, uncancelable, cancelable
+  // The cancel signal is sent half-way through, in the middle of the uncancelable effect
+  // Will the last effect run?
+  // It will because the cancel signal is only suppressed until the cancelable regions is reached
+  // The cancelation signal is applied to the whole chain, so it is acted upon by the first poll that encounters it
+  def threeStepProgram(): IO[Unit] =
+    val sequence = IO.uncancelable: poll =>
+      poll(IO("cancelable").ioDebug >> IO.sleep(1.second)) >>
+        IO("uncancelable").ioDebug >> IO.sleep(1.second) >>
+        poll(IO("second cancelable").ioDebug >> IO.sleep(1.second))
+
+    for
+      fib <- sequence.start
+      _ <- IO.sleep(1500.millis) >> IO("CANCELING").ioDebug >> fib.cancel
+      _ <- fib.join
+    yield ()
 
   override def run: IO[Unit] =
 //    cancelationOfDoom
 //    noCancelationOfDoom
 //    authFlow
-    authProgram
+//    authProgram
+//    cancelBeforeMol.void
+//    uncancelableMol.void
+//    invincibleAuthProgram.void
+    threeStepProgram()
